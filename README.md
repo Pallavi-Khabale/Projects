@@ -6,7 +6,7 @@ This repository is a curated portfolio of my end-to-end supply chain, analytics,
 
 ---
 
-### 📦 Supply Chain Planning & Optimization - Target (https://github.com/Pallavi-Khabale/SupplyChain_Planning-Target.git)
+### 1. [Supply Chain Planning & Optimization - Target](https://github.com/Pallavi-Khabale/SupplyChain_Planning-Target.git)
 End-to-end planning system including:
 - ABC / Pareto / ABC-XYZ segmentation
 - Demand forecasting & accuracy
