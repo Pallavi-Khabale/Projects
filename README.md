@@ -1,21 +1,19 @@
-# Projects
-Supply Chain & Analytics Projects
+# Supply Chain & Analytics Projects
 This repository is a curated portfolio of my end-to-end supply chain, analytics, and planning projects.
 
 ## Featured Projects
-
 ---
 
 ### 1. [Supply Chain Planning & Optimization - Target](https://github.com/Pallavi-Khabale/SupplyChain_Planning-Target.git)
 End-to-end planning system including:
-- ABC / Pareto / ABC-XYZ segmentation
-- Demand forecasting & accuracy
-- Inventory health & risk detection
-- EOQ / ROP / Min-Max / Newsvendor policies
-- S&OP scenario analysis
+- Segmentation → Identify critical products using ABC, Pareto, and ABC–XYZ
+- Demand Planning → Forecast demand and validate accuracy
+- Inventory Planning → Inventory models and evaluate inventory behavior and health
+- Replenishment Policy → Define EOQ, ROP, (Q,R), (s,S), (R,S), and Newsvendor policies
+- S&OP Scenarios → Test upside/downside demand scenarios vs capacity
+- Bottlenecks / Exceptions → Identify operational and service-level risks
 
-🔗 Live Demo: https://hr-inventory-analytics-target.streamlit.app/  
-📁 Code: /supplychain_optimization
+🔗 Live Demo: https://supply-chain-planning-optimization.streamlit.app/
 
 ---
 
