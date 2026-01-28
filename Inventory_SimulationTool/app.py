@@ -206,7 +206,7 @@ with st.sidebar:
     st.markdown("---")
     c_run, c_reset = st.columns(2)
     with c_run:
-        run = st.button("Run simulation", type="primary", disabled=st.session_state.has_run)
+        run = st.button("Run", type="primary", disabled=st.session_state.has_run)
     with c_reset:
         reset = st.button("Reset")
 
