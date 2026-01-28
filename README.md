@@ -17,7 +17,16 @@ End-to-end planning system including:
 
 ---
 
-### 2. [Excel Dashboard – DataCo Smart Supply Chain](https://github.com/Pallavi-Khabale/Project/tree/main/Excel_Dashboard---DataCo-Smart-Supply-Chain)
+### 2. [Inventory Simulation Tool - Streamlit App](https://github.com/Pallavi-Khabale/Projects/tree/main/Inventory_SimulationTool)
+- Built an interactive inventory planning and simulation web app using Python and Streamlit.
+- Simulates fixed-cycle replenishment under deterministic and stochastic demand.
+- Compares simple vs lead-time-aware ordering to highlight timing-driven stockouts.
+- Includes Monte Carlo analysis, safety stock & ROP guidance, and ABC/XYZ profit segmentation.
+- Visualises Demand, Orders, and Inventory on Hand with planner KPIs.
+
+---
+
+### 3. [Excel Dashboard – DataCo Smart Supply Chain](https://github.com/Pallavi-Khabale/Project/tree/main/Excel_Dashboard---DataCo-Smart-Supply-Chain)
 - Built an interactive **Excel dashboard** analyzing supply chain KPIs.
 - Used pivot tables, slicers, charts, and advanced Excel formulas.
 - Based on the **DataCoSupplyChain** dataset.
