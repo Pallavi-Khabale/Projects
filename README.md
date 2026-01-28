@@ -17,7 +17,7 @@ End-to-end planning system including:
 
 ---
 
-### 2. [Inventory Simulation Tool - Streamlit App](https://github.com/Pallavi-Khabale/Projects/tree/main/Inventory_SimulationTool)
+### 2. [Inventory Planning Tool - Streamlit App](https://github.com/Pallavi-Khabale/Projects/tree/main/Inventory_SimulationTool)
 - Built an interactive inventory planning and simulation web app using Python and Streamlit.
 - Simulates fixed-cycle replenishment under deterministic and stochastic demand.
 - Compares simple vs lead-time-aware ordering to highlight timing-driven stockouts.
