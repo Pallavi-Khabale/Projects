@@ -1,12 +1,5 @@
-
-print("Loading inventory_models.py...")
-
 from typing import Optional, Literal
-print("typing imported")
-
 from pydantic import BaseModel, Field
-print("pydantic imported")
-
 
 class InventoryParams(BaseModel):
     """Base economic & demand parameters (deterministic daily demand)."""
