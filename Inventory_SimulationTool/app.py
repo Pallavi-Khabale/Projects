@@ -2,13 +2,27 @@
 # Inventory Simulation – Streamlit Web App (4 tabs)
 # Tabs: Simulator | Compare | Monte Carlo | Profit Segmentation
 # Engine modules remain unchanged.
-import sys, importlib
+import sys
+import importlib
 import streamlit as st
 
-m = importlib.import_module("inventory.inventory_models")
 st.write("Python:", sys.version)
-st.write("Loaded:", m.__file__)
-st.write("Has InventoryParams:", hasattr(m, "InventoryParams"))
+
+# Force a clean re-import (avoid partially-loaded module in sys.modules)
+modname = "inventory.inventory_models"
+if modname in sys.modules:
+    del sys.modules[modname]
+
+try:
+    m = importlib.import_module(modname)
+    st.write("Loaded:", m.__file__)
+    st.write("Has InventoryParams:", hasattr(m, "InventoryParams"))
+    st.write("Names (filtered):", [x for x in dir(m) if "Inventory" in x or "Params" in x])
+except Exception as e:
+    st.error("REAL import error inside inventory_models.py:")
+    st.exception(e)
+    st.stop()
+
 
 import io
 import zipfile
