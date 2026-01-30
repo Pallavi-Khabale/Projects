@@ -289,7 +289,7 @@ with tab1:
     top_left, top_right = st.columns([1.35, 1], gap="large")
 
     with top_left:
-        st.subheader("Recommendation (Main Output)")
+        st.subheader("Recommendation")
 
         if np.isfinite(x_needed):
             st.markdown(
