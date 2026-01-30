@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 # Page config
 # -----------------------------
 st.set_page_config(
-    page_title="LSS — Logistic Regression (Incentive Policy)",
+    page_title="Lean Six Sigma - Logistic Regression (Incentive Policy)",
     layout="wide",
 )
 
