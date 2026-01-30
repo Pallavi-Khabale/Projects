@@ -123,7 +123,7 @@ def plot_box(df: pd.DataFrame):
     fig, ax = plt.subplots(figsize=(7.5, 4.5))
     df.boxplot(by=["Target"], column=["Incentive"], ax=ax)
     ax.set_xlabel("Target Reached (1: Yes, 0: No)")
-    ax.set_ylabel("Incentive (Euros/Day)")
+    ax.set_ylabel("Incentive (Dollars/Day)")
     ax.set_title("Incentive Distribution by Target Achievement")
     fig.suptitle("")
     fig.tight_layout()
@@ -147,7 +147,7 @@ def plot_logistic_curve(df: pd.DataFrame, model: LogisticRegression, p_line: flo
     ax.axhline(y=float(p_line), linestyle="--", alpha=0.7)
 
     ax.set_ylim(-0.1, 1.1)
-    ax.set_xlabel("Daily Incentive (Euros/Day)")
+    ax.set_xlabel("Daily Incentive (Dollars/Day)")
     ax.set_ylabel("Probability of meeting the productivity target")
     ax.set_title("Logistic Regression: Incentive → Probability of Hitting Target")
     fig.tight_layout()
