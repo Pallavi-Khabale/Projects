@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 # Page config
 # -----------------------------
 st.set_page_config(
-    page_title="Lean Six Sigma - Logistic Regression (Incentive Policy)",
+    page_title="LSS — Logistic Regression (Incentive Policy)",
     layout="wide",
 )
 
@@ -51,17 +51,22 @@ def validate_df(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def load_default_data() -> tuple[pd.DataFrame | None, str]:
+def load_default_data() -> tuple[pd.DataFrame | None, str, str]:
+    """
+    Loads default data from the same directory as app.py.
+    Prefers CSV, falls back to XLSX.
+    Returns: (df or None, status_message, source_label)
+    """
     try:
         if DEFAULT_CSV.exists():
             df = pd.read_csv(DEFAULT_CSV)
-            return validate_df(df), f"Loaded default CSV: {DEFAULT_CSV.name}"
+            return validate_df(df), f"Loaded default dataset: {DEFAULT_CSV.name}", DEFAULT_CSV.name
         if DEFAULT_XLSX.exists():
             df = pd.read_excel(DEFAULT_XLSX)
-            return validate_df(df), f"Loaded default Excel: {DEFAULT_XLSX.name}"
-        return None, "No default file found next to app.py."
+            return validate_df(df), f"Loaded default dataset: {DEFAULT_XLSX.name}", DEFAULT_XLSX.name
+        return None, "No default file found next to app.py.", "None"
     except Exception as e:
-        return None, f"Default file found but could not be loaded: {e}"
+        return None, f"Default file found but could not be loaded: {e}", "Error"
 
 
 def success_table(df: pd.DataFrame) -> pd.DataFrame:
@@ -118,7 +123,7 @@ def plot_box(df: pd.DataFrame):
     fig, ax = plt.subplots(figsize=(7.5, 4.5))
     df.boxplot(by=["Target"], column=["Incentive"], ax=ax)
     ax.set_xlabel("Target Reached (1: Yes, 0: No)")
-    ax.set_ylabel("Incentive (Dollars/Day)")
+    ax.set_ylabel("Incentive (Euros/Day)")
     ax.set_title("Incentive Distribution by Target Achievement")
     fig.suptitle("")
     fig.tight_layout()
@@ -142,8 +147,8 @@ def plot_logistic_curve(df: pd.DataFrame, model: LogisticRegression, p_line: flo
     ax.axhline(y=float(p_line), linestyle="--", alpha=0.7)
 
     ax.set_ylim(-0.1, 1.1)
-    ax.set_xlabel("Productivity Incentive (Dollars/Day)")
-    ax.set_ylabel("Probability of meeting the target")
+    ax.set_xlabel("Daily Incentive (Euros/Day)")
+    ax.set_ylabel("Probability of meeting the productivity target")
     ax.set_title("Logistic Regression: Incentive → Probability of Hitting Target")
     fig.tight_layout()
     return fig
@@ -178,20 +183,21 @@ with st.sidebar:
     test_size = st.slider("Test split", 0.1, 0.5, 0.30, 0.05)
     random_state = st.number_input("Random state", 0, 9999, 0, 1)
 
-    st.header("Target")
+    st.header("Target policy")
     desired_prob = st.slider("Desired probability", 0.50, 0.95, 0.75, 0.01)
 
-    st.header("Policy check")
-    current_bonus = st.number_input("Current bonus ($/day)", min_value=0.0, value=5.0, step=1.0)
+    st.header("Current policy (scenario)")
+    current_bonus = st.number_input("Current bonus (€/day)", min_value=0.0, value=5.0, step=1.0)
 
 
 # -----------------------------
 # Load data
 # -----------------------------
 df = None
+data_source_label = "Unknown"
 
 if data_mode == "Use default":
-    df, msg = load_default_data()
+    df, msg, data_source_label = load_default_data()
     if df is None:
         st.error(msg)
         st.info(
@@ -209,6 +215,7 @@ else:
     try:
         raw = pd.read_excel(uploaded)
         df = validate_df(raw)
+        data_source_label = "Uploaded Excel"
         st.sidebar.success("Uploaded file loaded.")
     except Exception as e:
         st.error(f"Could not load uploaded file: {e}")
@@ -233,7 +240,7 @@ tab0, tab1, tab2, tab3 = st.tabs(["Overview", "Executive Summary", "Analysis & V
 
 
 # -----------------------------
-# Overview (with Scenario)
+# Overview (Scenario + Business context + Default dataset note)
 # -----------------------------
 with tab0:
     left, right = st.columns([1.15, 0.85], gap="large")
@@ -241,50 +248,44 @@ with tab0:
     with left:
         st.subheader("Scenario")
         st.write(
-            "You are a regional director at a 3PL managing multiple warehouses. Each site has a daily picking productivity "
-            "target (cartons picked per paid hour). To motivate operators, a daily bonus is paid when the target is met.\n\n"
-            "A bonus policy is already in place, but performance remains low. Only a small share of operators consistently "
-            "meet the target. You decide to run a structured experiment across warehouses by varying daily incentives and "
-            "tracking whether operators reach the target."
+            "You are the Regional Director of a logistics company (3PL), responsible for **22 warehouses**.\n\n"
+            "In each warehouse, the site manager has defined a daily **picking productivity target** for operators. "
+            "**Picking productivity** is defined as the number of cartons picked per paid hour.\n\n"
+            "Your objective is to design the right incentive policy so that **75% of operators meet the target**."
         )
 
-        st.subheader("Business use case")
+        st.subheader("Current incentive policy (problem)")
         st.write(
-            "Leadership needs a defensible incentive policy that balances cost and performance. Instead of guessing the bonus, "
-            "the goal is to compute a minimum incentive level that achieves a target success probability (default 75%)."
+            "Operators who meet their daily target receive **€5/day**, on top of a daily salary of **€64/day (after tax)**. "
+            "This policy has been applied in **two warehouses**, but it is ineffective.\n\n"
+            "**Only ~20% of operators are currently reaching the target.**"
         )
 
-        st.subheader("Why logistic regression")
-        st.write(
-            "The outcome is **binary**:\n"
-            "- Target met (1)\n"
-            "- Target not met (0)\n\n"
-            "Logistic regression models the probability of success as a function of incentive amount, making it ideal for "
-            "threshold-based policy decisions."
-        )
+        st.subheader("Question")
+        st.write("**What minimum daily bonus is needed to reach a 75% probability of meeting the target?**")
 
-        st.subheader("What this app outputs")
+        st.subheader("Experiment design")
         st.write(
-            "- A **recommended minimum incentive** for a chosen probability (default 75%)\n"
-            "- A probability curve: incentive → probability of meeting target\n"
-            "- Success-rate table by incentive level\n"
-            "- KPI snapshot to support quick interpretation"
+            "- Randomly select operators across the 22 warehouses\n"
+            "- Implement a daily incentive amount varying between **€1 and €20**\n"
+            "- Record whether the operator reached the target (**Target = 1**) or not (**Target = 0**)"
         )
 
     with right:
         st.subheader("Lean Six Sigma framing (DMAIC)")
         st.write(
-            "**Define**: Incentive policy is not achieving productivity targets.\n\n"
-            "**Measure**: Run an experiment varying incentives and recording target achievement.\n\n"
-            "**Analyse**: Fit logistic regression to quantify incentive impact and the probability curve.\n\n"
-            "**Improve**: Set a bonus threshold that achieves the desired success probability.\n\n"
-            "**Control**: Monitor success rate and refresh the model as demand, seasonality, or workforce changes."
+            "**Define**: Incentive policy exists but target achievement remains low.\n\n"
+            "**Measure**: Run a structured incentive experiment and capture binary outcomes.\n\n"
+            "**Analyse**: Fit logistic regression to estimate probability of success by incentive amount.\n\n"
+            "**Improve**: Choose a minimum incentive threshold that achieves the target probability.\n\n"
+            "**Control**: Monitor performance and refresh the model as demand, seasonality, or workforce changes."
         )
 
-        st.subheader("How to read the recommendation")
+        st.subheader("Default dataset used in this demo")
         st.write(
-            "The main number is a **policy threshold**, not a guarantee.\n\n"
-            "It answers: *Given the experiment data, what bonus level corresponds to a chosen probability of hitting target?*"
+            f"This app loads a **default dataset** when set to **Use default**.\n\n"
+            f"Current source: **{data_source_label}**\n\n"
+            "To replace the default, upload your own Excel file with columns: `Incentive`, `Target`."
         )
 
 
@@ -303,13 +304,13 @@ with tab1:
                 <div style="padding: 18px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.12);">
                   <div style="font-size: 14px; opacity: 0.75;">Minimum incentive required</div>
                   <div style="font-size: 46px; font-weight: 900; line-height: 1.05; margin-top: 2px;">
-                    ${x_needed:.2f}
+                    €{x_needed:.2f}
                   </div>
                   <div style="margin-top: 8px; font-size: 16px;">
                     to achieve <b>{desired_prob*100:.0f}%</b> probability of meeting the productivity target
                   </div>
                   <div style="margin-top: 10px; font-size: 14px; opacity: 0.8;">
-                    Rounded up policy suggestion: <b>${int(np.ceil(x_needed))}/day</b>
+                    Rounded up policy suggestion: <b>€{int(np.ceil(x_needed))}/day</b>
                   </div>
                 </div>
                 """,
@@ -319,9 +320,9 @@ with tab1:
             st.error("Unable to compute the incentive threshold (coefficient is zero/invalid).")
 
         st.write("")
-        st.subheader("Policy gap check (current bonus)")
+        st.subheader("Current policy check (€/day)")
         st.write(
-            f"At the current bonus of **${current_bonus:.0f}/day**, the model estimates about "
+            f"At the current bonus of **€{current_bonus:.0f}/day**, the model estimates about "
             f"**{p_current*100:.1f}%** probability of meeting the target."
         )
 
