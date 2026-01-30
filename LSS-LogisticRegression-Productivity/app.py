@@ -20,7 +20,6 @@ st.set_page_config(
     layout="wide",
 )
 
-# Resolve paths relative to this app.py (NOT current working directory)
 ROOT = Path(__file__).resolve().parent
 DEFAULT_CSV = ROOT / "df_incentive.csv"
 DEFAULT_XLSX = ROOT / "df_incentive.xlsx"
@@ -36,7 +35,6 @@ def validate_df(df: pd.DataFrame) -> pd.DataFrame:
         raise ValueError(f"Missing required columns: {missing}. Expected: Incentive, Target")
 
     out = df.copy()[["Incentive", "Target"]]
-
     out["Incentive"] = pd.to_numeric(out["Incentive"], errors="coerce")
     out["Target"] = pd.to_numeric(out["Target"], errors="coerce")
     out = out.dropna()
@@ -44,11 +42,9 @@ def validate_df(df: pd.DataFrame) -> pd.DataFrame:
     out["Incentive"] = out["Incentive"].astype(float)
     out["Target"] = out["Target"].astype(int)
 
-    # Target must be binary
     if not set(out["Target"].unique()).issubset({0, 1}):
         raise ValueError("Target must be binary (0/1).")
 
-    # If Incentive is constant, model will be meaningless
     if out["Incentive"].nunique() < 2:
         raise ValueError("Incentive must have at least 2 unique values.")
 
@@ -56,11 +52,6 @@ def validate_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_default_data() -> tuple[pd.DataFrame | None, str]:
-    """
-    Loads default data from the same directory as app.py.
-    Prefers CSV, falls back to XLSX.
-    Returns: (df or None, message)
-    """
     try:
         if DEFAULT_CSV.exists():
             df = pd.read_csv(DEFAULT_CSV)
@@ -111,10 +102,13 @@ def incentive_for_probability(b0: float, b1: float, p: float) -> float:
     if b1 == 0:
         return np.nan
     p = float(p)
-    # avoid log(0)
     p = min(max(p, 1e-6), 1 - 1e-6)
     logit = np.log(p / (1 - p))
     return float((logit - b0) / b1)
+
+
+def probability_for_incentive(model: LogisticRegression, x: float) -> float:
+    return float(model.predict_proba(np.array([[x]], dtype=float))[:, 1][0])
 
 
 # -----------------------------
@@ -140,15 +134,11 @@ def plot_logistic_curve(df: pd.DataFrame, model: LogisticRegression, p_line: flo
 
     fig, ax = plt.subplots(figsize=(7.5, 4.5))
 
-    # Scatter with small jitter to prevent complete overlap
     rng = np.random.default_rng(0)
     jitter = rng.normal(0, 0.02, size=len(df))
     ax.scatter(df["Incentive"], df["Target"] + jitter, alpha=0.35)
 
-    # Logistic curve
     ax.plot(x_grid.flatten(), y_prob)
-
-    # Probability threshold line
     ax.axhline(y=float(p_line), linestyle="--", alpha=0.7)
 
     ax.set_ylim(-0.1, 1.1)
@@ -163,7 +153,14 @@ def plot_logistic_curve(df: pd.DataFrame, model: LogisticRegression, p_line: flo
 # Header
 # -----------------------------
 st.title("Lean Six Sigma — Incentive Policy Optimisation (Logistic Regression)")
-st.caption("Concept-first DMAIC analysis. The app is just a presentation layer.")
+st.caption("Concept-first DMAIC analysis. The app is a presentation layer for the decision logic.")
+
+with st.expander("Debug: paths & files (remove once stable)", expanded=False):
+    st.write("CWD:", os.getcwd())
+    st.write("APP DIR:", str(ROOT))
+    st.write("FILES:", sorted([p.name for p in ROOT.iterdir()]))
+    st.write("df_incentive.csv exists:", DEFAULT_CSV.exists())
+    st.write("df_incentive.xlsx exists:", DEFAULT_XLSX.exists())
 
 
 # -----------------------------
@@ -184,6 +181,9 @@ with st.sidebar:
     st.header("Target")
     desired_prob = st.slider("Desired probability", 0.50, 0.95, 0.75, 0.01)
 
+    st.header("Policy check")
+    current_bonus = st.number_input("Current bonus ($/day)", min_value=0.0, value=5.0, step=1.0)
+
 
 # -----------------------------
 # Load data
@@ -195,8 +195,7 @@ if data_mode == "Use default":
     if df is None:
         st.error(msg)
         st.info(
-            "Fix: Put df_incentive.csv (preferred) or df_incentive.xlsx in the SAME folder as app.py "
-            f"({ROOT})."
+            f"Fix: Put df_incentive.csv (preferred) or df_incentive.xlsx next to app.py in: {ROOT}"
         )
         st.stop()
     else:
@@ -224,16 +223,73 @@ b0 = results["intercept"]
 b1 = results["coefficient"]
 
 x_needed = incentive_for_probability(b0, b1, float(desired_prob))
+p_current = probability_for_incentive(results["model"], float(current_bonus))
 
 
 # -----------------------------
-# Tabs (reduce scrolling)
+# Tabs (Overview first)
 # -----------------------------
-tab1, tab2, tab3 = st.tabs(["Executive Summary", "Analysis & Visuals", "Data"])
+tab0, tab1, tab2, tab3 = st.tabs(["Overview", "Executive Summary", "Analysis & Visuals", "Data"])
 
 
 # -----------------------------
-# Tab 1: Executive Summary
+# Overview (with Scenario)
+# -----------------------------
+with tab0:
+    left, right = st.columns([1.15, 0.85], gap="large")
+
+    with left:
+        st.subheader("Scenario")
+        st.write(
+            "You are a regional director at a 3PL managing multiple warehouses. Each site has a daily picking productivity "
+            "target (cartons picked per paid hour). To motivate operators, a daily bonus is paid when the target is met.\n\n"
+            "A bonus policy is already in place, but performance remains low. Only a small share of operators consistently "
+            "meet the target. You decide to run a structured experiment across warehouses by varying daily incentives and "
+            "tracking whether operators reach the target."
+        )
+
+        st.subheader("Business use case")
+        st.write(
+            "Leadership needs a defensible incentive policy that balances cost and performance. Instead of guessing the bonus, "
+            "the goal is to compute a minimum incentive level that achieves a target success probability (default 75%)."
+        )
+
+        st.subheader("Why logistic regression")
+        st.write(
+            "The outcome is **binary**:\n"
+            "- Target met (1)\n"
+            "- Target not met (0)\n\n"
+            "Logistic regression models the probability of success as a function of incentive amount, making it ideal for "
+            "threshold-based policy decisions."
+        )
+
+        st.subheader("What this app outputs")
+        st.write(
+            "- A **recommended minimum incentive** for a chosen probability (default 75%)\n"
+            "- A probability curve: incentive → probability of meeting target\n"
+            "- Success-rate table by incentive level\n"
+            "- KPI snapshot to support quick interpretation"
+        )
+
+    with right:
+        st.subheader("Lean Six Sigma framing (DMAIC)")
+        st.write(
+            "**Define**: Incentive policy is not achieving productivity targets.\n\n"
+            "**Measure**: Run an experiment varying incentives and recording target achievement.\n\n"
+            "**Analyse**: Fit logistic regression to quantify incentive impact and the probability curve.\n\n"
+            "**Improve**: Set a bonus threshold that achieves the desired success probability.\n\n"
+            "**Control**: Monitor success rate and refresh the model as demand, seasonality, or workforce changes."
+        )
+
+        st.subheader("How to read the recommendation")
+        st.write(
+            "The main number is a **policy threshold**, not a guarantee.\n\n"
+            "It answers: *Given the experiment data, what bonus level corresponds to a chosen probability of hitting target?*"
+        )
+
+
+# -----------------------------
+# Executive Summary
 # -----------------------------
 with tab1:
     top_left, top_right = st.columns([1.35, 1], gap="large")
@@ -263,10 +319,10 @@ with tab1:
             st.error("Unable to compute the incentive threshold (coefficient is zero/invalid).")
 
         st.write("")
-        st.subheader("Interpretation")
+        st.subheader("Policy gap check (current bonus)")
         st.write(
-            "This converts experiment results into a decision threshold. "
-            "Instead of guessing bonuses, you set an incentive level that achieves a target success probability."
+            f"At the current bonus of **${current_bonus:.0f}/day**, the model estimates about "
+            f"**{p_current*100:.1f}%** probability of meeting the target."
         )
 
     with top_right:
@@ -283,18 +339,18 @@ with tab1:
         m1.metric("Intercept (b0)", f"{b0:.4f}")
         m2.metric("Coefficient (b1)", f"{b1:.4f}")
 
-        with st.expander("Lean Six Sigma framing (DMAIC)", expanded=False):
+        with st.expander("Lean Six Sigma summary (DMAIC)", expanded=False):
             st.write(
-                "- **Define**: Incentive policy is not achieving productivity targets.\n"
-                "- **Measure**: Run incentive experiments and record binary outcomes.\n"
-                "- **Analyse**: Fit logistic regression to estimate probability curve.\n"
-                "- **Improve**: Choose incentive level that hits target probability.\n"
-                "- **Control**: Re-evaluate quarterly as workforce and seasonality change."
+                "- **Define**: Incentive policy not achieving targets.\n"
+                "- **Measure**: Experiment with incentive levels.\n"
+                "- **Analyse**: Logistic regression probability curve.\n"
+                "- **Improve**: Choose threshold incentive.\n"
+                "- **Control**: Re-run periodically."
             )
 
 
 # -----------------------------
-# Tab 2: Analysis & Visuals
+# Analysis & Visuals
 # -----------------------------
 with tab2:
     c1, c2 = st.columns(2, gap="large")
@@ -324,7 +380,7 @@ with tab2:
 
 
 # -----------------------------
-# Tab 3: Data
+# Data
 # -----------------------------
 with tab3:
     st.subheader("Dataset Preview")
