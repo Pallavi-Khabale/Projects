@@ -150,7 +150,7 @@ st.caption("Concept-first DMAIC analysis. The app is just a presentation layer."
 # -----------------------------
 with st.sidebar:
     st.header("Data")
-    data_mode = st.radio("Source", ["Use default", "Upload Excel"], index=0)
+    data_mode = st.radio("Source", ["Use default file", "Upload Excel"], index=0)
 
     uploaded = None
     if data_mode == "Upload Excel":
@@ -168,20 +168,30 @@ with st.sidebar:
 # Load data
 # -----------------------------
 df = None
-if data_mode == "Use default":
-    df = load_default_data()
-    df = pd.read_csv("df_incentive.csv")
-    df.to_excel("df_incentive.xlsx", index=False)
-    if df is None:
+
+if data_mode == "Use default file":
+    # Prefer CSV if you have CSV text; fallback to XLSX if present
+    if os.path.exists("df_incentive.csv"):
+        df = pd.read_csv("df_incentive.csv")
+        df = validate_df(df)
+        st.sidebar.success("Loaded default: df_incentive.csv")
+    elif os.path.exists("df_incentive.xlsx"):
+        df = pd.read_excel("df_incentive.xlsx")
+        df = validate_df(df)
+        st.sidebar.success("Loaded default: df_incentive.xlsx")
+    else:
         st.error(
-            "Could not find df_incentive.xlsx in the repo root. "
-            "Either add it there or switch to Upload Excel."
+            "No default data found in repo root.\n\n"
+            "Add **df_incentive.csv** or **df_incentive.xlsx** next to app.py, "
+            "or switch to Upload Excel."
         )
         st.stop()
+
 else:
     if uploaded is None:
         st.info("Upload your Excel file to continue.")
         st.stop()
+
     raw = pd.read_excel(uploaded)
     df = validate_df(raw)
 
