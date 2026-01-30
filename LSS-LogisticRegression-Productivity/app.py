@@ -168,7 +168,7 @@ with st.sidebar:
 # Load data
 # -----------------------------
 df = None
-if data_mode == "Use default df_incentive.xlsx":
+if data_mode == "Use default":
     df = load_default_data()
     df = pd.read_csv("df_incentive.csv")
     df.to_excel("df_incentive.xlsx", index=False)
