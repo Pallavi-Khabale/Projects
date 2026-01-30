@@ -160,13 +160,6 @@ def plot_logistic_curve(df: pd.DataFrame, model: LogisticRegression, p_line: flo
 st.title("Lean Six Sigma — Incentive Policy Optimisation (Logistic Regression)")
 st.caption("Concept-first DMAIC analysis. The app is a presentation layer for the decision logic.")
 
-with st.expander("Debug: paths & files (remove once stable)", expanded=False):
-    st.write("CWD:", os.getcwd())
-    st.write("APP DIR:", str(ROOT))
-    st.write("FILES:", sorted([p.name for p in ROOT.iterdir()]))
-    st.write("df_incentive.csv exists:", DEFAULT_CSV.exists())
-    st.write("df_incentive.xlsx exists:", DEFAULT_XLSX.exists())
-
 
 # -----------------------------
 # Sidebar controls
