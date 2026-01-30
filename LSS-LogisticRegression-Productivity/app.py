@@ -187,7 +187,7 @@ with st.sidebar:
     desired_prob = st.slider("Desired probability", 0.50, 0.95, 0.75, 0.01)
 
     st.header("Current policy (scenario)")
-    current_bonus = st.number_input("Current bonus (€/day)", min_value=0.0, value=5.0, step=1.0)
+    current_bonus = st.number_input("Current bonus ($/day)", min_value=0.0, value=5.0, step=1.0)
 
 
 # -----------------------------
@@ -256,7 +256,7 @@ with tab0:
 
         st.subheader("Current incentive policy (problem)")
         st.write(
-            "Operators who meet their daily target receive **€5/day**, on top of a daily salary of **€64/day (after tax)**. "
+            "Operators who meet their daily target receive **$5/day**, on top of a daily salary of **$64/day (after tax)**. "
             "This policy has been applied in **two warehouses**, but it is ineffective.\n\n"
             "**Only ~20% of operators are currently reaching the target.**"
         )
@@ -267,7 +267,7 @@ with tab0:
         st.subheader("Experiment design")
         st.write(
             "- Randomly select operators across the 22 warehouses\n"
-            "- Implement a daily incentive amount varying between **€1 and €20**\n"
+            "- Implement a daily incentive amount varying between **$1 and $20**\n"
             "- Record whether the operator reached the target (**Target = 1**) or not (**Target = 0**)"
         )
 
@@ -304,13 +304,13 @@ with tab1:
                 <div style="padding: 18px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.12);">
                   <div style="font-size: 14px; opacity: 0.75;">Minimum incentive required</div>
                   <div style="font-size: 46px; font-weight: 900; line-height: 1.05; margin-top: 2px;">
-                    €{x_needed:.2f}
+                    ${x_needed:.2f}
                   </div>
                   <div style="margin-top: 8px; font-size: 16px;">
                     to achieve <b>{desired_prob*100:.0f}%</b> probability of meeting the productivity target
                   </div>
                   <div style="margin-top: 10px; font-size: 14px; opacity: 0.8;">
-                    Rounded up policy suggestion: <b>€{int(np.ceil(x_needed))}/day</b>
+                    Rounded up policy suggestion: <b>${int(np.ceil(x_needed))}/day</b>
                   </div>
                 </div>
                 """,
@@ -320,9 +320,9 @@ with tab1:
             st.error("Unable to compute the incentive threshold (coefficient is zero/invalid).")
 
         st.write("")
-        st.subheader("Current policy check (€/day)")
+        st.subheader("Current policy check ($/day)")
         st.write(
-            f"At the current bonus of **€{current_bonus:.0f}/day**, the model estimates about "
+            f"At the current bonus of **${current_bonus:.0f}/day**, the model estimates about "
             f"**{p_current*100:.1f}%** probability of meeting the target."
         )
 
