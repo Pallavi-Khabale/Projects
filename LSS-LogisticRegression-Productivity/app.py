@@ -17,6 +17,15 @@ st.set_page_config(
     layout="wide",
 )
 
+from pathlib import Path
+import streamlit as st
+
+ROOT = Path(__file__).resolve().parent
+
+st.sidebar.write("CWD:", Path.cwd())
+st.sidebar.write("APP DIR:", ROOT)
+st.sidebar.write("ROOT FILES:", sorted([p.name for p in ROOT.iterdir()]))
+
 
 # -----------------------------
 # Data helpers
