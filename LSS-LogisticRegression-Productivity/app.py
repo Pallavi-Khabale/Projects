@@ -8,6 +8,12 @@ import streamlit as st
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+DEFAULT_CSV = ROOT / "df_incentive.csv"
+DEFAULT_XLSX = ROOT / "df_incentive.xlsx"
+
 
 # -----------------------------
 # Page config
@@ -16,15 +22,6 @@ st.set_page_config(
     page_title="LSS — Logistic Regression (Incentive Policy)",
     layout="wide",
 )
-
-from pathlib import Path
-import streamlit as st
-
-ROOT = Path(__file__).resolve().parent
-
-st.sidebar.write("CWD:", Path.cwd())
-st.sidebar.write("APP DIR:", ROOT)
-st.sidebar.write("ROOT FILES:", sorted([p.name for p in ROOT.iterdir()]))
 
 
 # -----------------------------
@@ -56,9 +53,14 @@ def validate_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_default_data() -> pd.DataFrame | None:
-    if os.path.exists(DEFAULT_FILE):
-        df = pd.read_excel(DEFAULT_FILE)
+    if DEFAULT_CSV.exists():
+        df = pd.read_csv(DEFAULT_CSV)
         return validate_df(df)
+
+    if DEFAULT_XLSX.exists():
+        df = pd.read_excel(DEFAULT_XLSX)
+        return validate_df(df)
+
     return None
 
 
@@ -178,21 +180,12 @@ with st.sidebar:
 # -----------------------------
 df = None
 
-if data_mode == "Use default file":
-    # Prefer CSV if you have CSV text; fallback to XLSX if present
-    if os.path.exists("df_incentive.csv"):
-        df = pd.read_csv("df_incentive.csv")
-        df = validate_df(df)
-        st.sidebar.success("Loaded default: df_incentive.csv")
-    elif os.path.exists("df_incentive.xlsx"):
-        df = pd.read_excel("df_incentive.xlsx")
-        df = validate_df(df)
-        st.sidebar.success("Loaded default: df_incentive.xlsx")
-    else:
+if data_mode == "Use default":
+    df = load_default_data()
+    if df is None:
         st.error(
-            "No default data found in repo root.\n\n"
-            "Add **df_incentive.csv** or **df_incentive.xlsx** next to app.py, "
-            "or switch to Upload Excel."
+            "No default data found next to app.py. "
+            "Expected df_incentive.csv or df_incentive.xlsx in the same folder as app.py."
         )
         st.stop()
 
@@ -203,6 +196,7 @@ else:
 
     raw = pd.read_excel(uploaded)
     df = validate_df(raw)
+
 
 
 # -----------------------------
