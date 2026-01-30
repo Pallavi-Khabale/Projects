@@ -150,7 +150,7 @@ st.caption("Concept-first DMAIC analysis. The app is just a presentation layer."
 # -----------------------------
 with st.sidebar:
     st.header("Data")
-    data_mode = st.radio("Source", ["Use default df_incentive.xlsx", "Upload Excel"], index=0)
+    data_mode = st.radio("Source", ["Use default", "Upload Excel"], index=0)
 
     uploaded = None
     if data_mode == "Upload Excel":
@@ -170,6 +170,8 @@ with st.sidebar:
 df = None
 if data_mode == "Use default df_incentive.xlsx":
     df = load_default_data()
+    df = pd.read_csv("df_incentive.csv")
+    df.to_excel("df_incentive.xlsx", index=False)
     if df is None:
         st.error(
             "Could not find df_incentive.xlsx in the repo root. "
@@ -215,13 +217,13 @@ with tab1:
                 <div style="padding: 18px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.1);">
                   <div style="font-size: 14px; opacity: 0.75;">Minimum incentive required</div>
                   <div style="font-size: 44px; font-weight: 800; line-height: 1.05;">
-                    €{x_needed:.2f}
+                    ${x_needed:.2f}
                   </div>
                   <div style="margin-top: 6px; font-size: 16px;">
                     to achieve <b>{desired_prob*100:.0f}%</b> probability of meeting the productivity target
                   </div>
                   <div style="margin-top: 10px; font-size: 14px; opacity: 0.75;">
-                    Rounded up policy suggestion: <b>€{int(np.ceil(x_needed))}/day</b>
+                    Rounded up policy suggestion: <b>${int(np.ceil(x_needed))}/day</b>
                   </div>
                 </div>
                 """,
