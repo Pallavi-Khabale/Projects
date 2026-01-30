@@ -249,7 +249,7 @@ with tab0:
 
         st.subheader("Current incentive policy (problem)")
         st.write(
-            "Operators who meet their daily target receive **$5/day**, on top of a daily salary of **$64/day (after tax)**. "
+            "Operators who meet their daily target receive $5/day, on top of a daily salary of $64/day (after tax). "
             "This policy has been applied in **two warehouses**, but it is ineffective.\n\n"
             "**Only ~20% of operators are currently reaching the target.**"
         )
