@@ -1,5 +1,8 @@
-import io
+from __future__ import annotations
+
 import os
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,12 +10,6 @@ import streamlit as st
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parent
-DEFAULT_CSV = ROOT / "df_incentive.csv"
-DEFAULT_XLSX = ROOT / "df_incentive.xlsx"
 
 
 # -----------------------------
@@ -23,22 +20,23 @@ st.set_page_config(
     layout="wide",
 )
 
+# Resolve paths relative to this app.py (NOT current working directory)
+ROOT = Path(__file__).resolve().parent
+DEFAULT_CSV = ROOT / "df_incentive.csv"
+DEFAULT_XLSX = ROOT / "df_incentive.xlsx"
+
 
 # -----------------------------
 # Data helpers
 # -----------------------------
-#DEFAULT_FILE = "df_incentive.xlsx"  # sits in repo root
-
-
 def validate_df(df: pd.DataFrame) -> pd.DataFrame:
     required = {"Incentive", "Target"}
     missing = required - set(df.columns)
     if missing:
-        raise ValueError(
-            f"Missing required columns: {missing}. Expected columns: Incentive, Target"
-        )
+        raise ValueError(f"Missing required columns: {missing}. Expected: Incentive, Target")
 
     out = df.copy()[["Incentive", "Target"]]
+
     out["Incentive"] = pd.to_numeric(out["Incentive"], errors="coerce")
     out["Target"] = pd.to_numeric(out["Target"], errors="coerce")
     out = out.dropna()
@@ -46,22 +44,33 @@ def validate_df(df: pd.DataFrame) -> pd.DataFrame:
     out["Incentive"] = out["Incentive"].astype(float)
     out["Target"] = out["Target"].astype(int)
 
+    # Target must be binary
     if not set(out["Target"].unique()).issubset({0, 1}):
         raise ValueError("Target must be binary (0/1).")
+
+    # If Incentive is constant, model will be meaningless
+    if out["Incentive"].nunique() < 2:
+        raise ValueError("Incentive must have at least 2 unique values.")
 
     return out
 
 
-def load_default_data() -> pd.DataFrame | None:
-    if DEFAULT_CSV.exists():
-        df = pd.read_csv(DEFAULT_CSV)
-        return validate_df(df)
-
-    if DEFAULT_XLSX.exists():
-        df = pd.read_excel(DEFAULT_XLSX)
-        return validate_df(df)
-
-    return None
+def load_default_data() -> tuple[pd.DataFrame | None, str]:
+    """
+    Loads default data from the same directory as app.py.
+    Prefers CSV, falls back to XLSX.
+    Returns: (df or None, message)
+    """
+    try:
+        if DEFAULT_CSV.exists():
+            df = pd.read_csv(DEFAULT_CSV)
+            return validate_df(df), f"Loaded default CSV: {DEFAULT_CSV.name}"
+        if DEFAULT_XLSX.exists():
+            df = pd.read_excel(DEFAULT_XLSX)
+            return validate_df(df), f"Loaded default Excel: {DEFAULT_XLSX.name}"
+        return None, "No default file found next to app.py."
+    except Exception as e:
+        return None, f"Default file found but could not be loaded: {e}"
 
 
 def success_table(df: pd.DataFrame) -> pd.DataFrame:
@@ -69,13 +78,13 @@ def success_table(df: pd.DataFrame) -> pd.DataFrame:
     tbl = pd.DataFrame({"Target": g.sum(), "Total": g.count()})
     tbl["No Target"] = tbl["Total"] - tbl["Target"]
     tbl["Success Rate %"] = (tbl["Target"] / tbl["Total"] * 100).round(1)
-    return tbl.reset_index().sort_values("Incentive")
+    return tbl.reset_index().sort_values("Incentive", ascending=True)
 
 
 # -----------------------------
 # Model helpers
 # -----------------------------
-def fit_logistic(df: pd.DataFrame, test_size: float, random_state: int):
+def fit_logistic(df: pd.DataFrame, test_size: float, random_state: int) -> dict:
     X = df[["Incentive"]].values
     y = df["Target"].values
 
@@ -99,15 +108,17 @@ def fit_logistic(df: pd.DataFrame, test_size: float, random_state: int):
 
 
 def incentive_for_probability(b0: float, b1: float, p: float) -> float:
-    # x = (log(p/(1-p)) - b0) / b1
     if b1 == 0:
         return np.nan
+    p = float(p)
+    # avoid log(0)
+    p = min(max(p, 1e-6), 1 - 1e-6)
     logit = np.log(p / (1 - p))
     return float((logit - b0) / b1)
 
 
 # -----------------------------
-# Plot helpers (NO seaborn, NO statsmodels)
+# Plot helpers (NO seaborn)
 # -----------------------------
 def plot_box(df: pd.DataFrame):
     fig, ax = plt.subplots(figsize=(7.5, 4.5))
@@ -120,26 +131,25 @@ def plot_box(df: pd.DataFrame):
     return fig
 
 
-def plot_logistic_curve(df: pd.DataFrame, model: LogisticRegression, p_line: float = 0.75):
-    # curve from model predictions
+def plot_logistic_curve(df: pd.DataFrame, model: LogisticRegression, p_line: float):
     x_min = float(df["Incentive"].min())
     x_max = float(df["Incentive"].max())
 
-    x_grid = np.linspace(x_min, x_max, 200).reshape(-1, 1)
+    x_grid = np.linspace(x_min, x_max, 250).reshape(-1, 1)
     y_prob = model.predict_proba(x_grid)[:, 1]
 
     fig, ax = plt.subplots(figsize=(7.5, 4.5))
 
-    # scatter of raw points (with jitter for visibility)
+    # Scatter with small jitter to prevent complete overlap
     rng = np.random.default_rng(0)
     jitter = rng.normal(0, 0.02, size=len(df))
-    ax.scatter(df["Incentive"], df["Target"] + jitter, alpha=0.4)
+    ax.scatter(df["Incentive"], df["Target"] + jitter, alpha=0.35)
 
-    # logistic curve
+    # Logistic curve
     ax.plot(x_grid.flatten(), y_prob)
 
-    # threshold line
-    ax.axhline(y=p_line, linestyle="--", alpha=0.7)
+    # Probability threshold line
+    ax.axhline(y=float(p_line), linestyle="--", alpha=0.7)
 
     ax.set_ylim(-0.1, 1.1)
     ax.set_xlabel("Productivity Incentive (Dollars/Day)")
@@ -150,18 +160,25 @@ def plot_logistic_curve(df: pd.DataFrame, model: LogisticRegression, p_line: flo
 
 
 # -----------------------------
-# Header (short, no scrolling)
+# Header
 # -----------------------------
 st.title("Lean Six Sigma — Incentive Policy Optimisation (Logistic Regression)")
 st.caption("Concept-first DMAIC analysis. The app is just a presentation layer.")
 
+with st.expander("Debug: paths & files (remove once stable)", expanded=False):
+    st.write("Current working directory (CWD):", os.getcwd())
+    st.write("App directory (ROOT):", str(ROOT))
+    st.write("Files next to app.py:", sorted([p.name for p in ROOT.iterdir()]))
+    st.write("DEFAULT_CSV exists:", DEFAULT_CSV.exists(), "→", str(DEFAULT_CSV))
+    st.write("DEFAULT_XLSX exists:", DEFAULT_XLSX.exists(), "→", str(DEFAULT_XLSX))
+
 
 # -----------------------------
-# Sidebar (minimal)
+# Sidebar controls
 # -----------------------------
 with st.sidebar:
     st.header("Data")
-    data_mode = st.radio("Source", ["Use default file", "Upload Excel"], index=0)
+    data_mode = st.radio("Source", ["Use default", "Upload Excel"], index=0)
 
     uploaded = None
     if data_mode == "Upload Excel":
@@ -181,26 +198,33 @@ with st.sidebar:
 df = None
 
 if data_mode == "Use default":
-    df = load_default_data()
+    df, msg = load_default_data()
     if df is None:
-        st.error(
-            "No default data found next to app.py. "
-            "Expected df_incentive.csv or df_incentive.xlsx in the same folder as app.py."
+        st.error(msg)
+        st.info(
+            "Fix: Put df_incentive.csv (preferred) or df_incentive.xlsx in the SAME folder as app.py "
+            f"({ROOT})."
         )
         st.stop()
+    else:
+        st.sidebar.success(msg)
 
 else:
     if uploaded is None:
         st.info("Upload your Excel file to continue.")
         st.stop()
 
-    raw = pd.read_excel(uploaded)
-    df = validate_df(raw)
-
+    try:
+        raw = pd.read_excel(uploaded)
+        df = validate_df(raw)
+        st.sidebar.success("Uploaded file loaded.")
+    except Exception as e:
+        st.error(f"Could not load uploaded file: {e}")
+        st.stop()
 
 
 # -----------------------------
-# Fit model
+# Fit model + compute recommendation
 # -----------------------------
 results = fit_logistic(df, test_size=float(test_size), random_state=int(random_state))
 b0 = results["intercept"]
@@ -210,13 +234,13 @@ x_needed = incentive_for_probability(b0, b1, float(desired_prob))
 
 
 # -----------------------------
-# Tabs to reduce scrolling
+# Tabs (reduce scrolling)
 # -----------------------------
 tab1, tab2, tab3 = st.tabs(["Executive Summary", "Analysis & Visuals", "Data"])
 
 
 # -----------------------------
-# Tab 1: Executive Summary (MAIN output highlighted)
+# Tab 1: Executive Summary
 # -----------------------------
 with tab1:
     top_left, top_right = st.columns([1.35, 1], gap="large")
@@ -227,15 +251,15 @@ with tab1:
         if np.isfinite(x_needed):
             st.markdown(
                 f"""
-                <div style="padding: 18px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.1);">
+                <div style="padding: 18px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.12);">
                   <div style="font-size: 14px; opacity: 0.75;">Minimum incentive required</div>
-                  <div style="font-size: 44px; font-weight: 800; line-height: 1.05;">
+                  <div style="font-size: 46px; font-weight: 900; line-height: 1.05; margin-top: 2px;">
                     ${x_needed:.2f}
                   </div>
-                  <div style="margin-top: 6px; font-size: 16px;">
+                  <div style="margin-top: 8px; font-size: 16px;">
                     to achieve <b>{desired_prob*100:.0f}%</b> probability of meeting the productivity target
                   </div>
-                  <div style="margin-top: 10px; font-size: 14px; opacity: 0.75;">
+                  <div style="margin-top: 10px; font-size: 14px; opacity: 0.8;">
                     Rounded up policy suggestion: <b>${int(np.ceil(x_needed))}/day</b>
                   </div>
                 </div>
@@ -243,13 +267,13 @@ with tab1:
                 unsafe_allow_html=True,
             )
         else:
-            st.error("Unable to compute the incentive threshold (model coefficient is zero/invalid).")
+            st.error("Unable to compute the incentive threshold (coefficient is zero/invalid).")
 
         st.write("")
-        st.subheader("What this means")
+        st.subheader("Interpretation")
         st.write(
-            "This model converts experimental results into a decision threshold. "
-            "Instead of guessing bonuses, you can set an incentive level that achieves a target success probability."
+            "This converts experiment results into a decision threshold. "
+            "Instead of guessing bonuses, you set an incentive level that achieves a target success probability."
         )
 
     with top_right:
@@ -307,7 +331,7 @@ with tab2:
 
 
 # -----------------------------
-# Tab 3: Data (kept out of the way)
+# Tab 3: Data
 # -----------------------------
 with tab3:
     st.subheader("Dataset Preview")
