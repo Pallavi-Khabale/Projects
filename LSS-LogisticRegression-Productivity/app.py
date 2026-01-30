@@ -21,7 +21,7 @@ st.set_page_config(
 # -----------------------------
 # Data helpers
 # -----------------------------
-DEFAULT_FILE = "data/df_incentive.xlsx"  # sits in repo root
+DEFAULT_FILE = "df_incentive.xlsx"  # sits in repo root
 
 
 def validate_df(df: pd.DataFrame) -> pd.DataFrame:
